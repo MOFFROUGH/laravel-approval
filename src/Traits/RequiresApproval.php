@@ -2,11 +2,17 @@
 
 namespace Approval\Traits;
 
-use Approval\Models\Modification;
 use Illuminate\Database\Eloquent\Collection;
 
 trait RequiresApproval
 {
+    /**
+     * Boolean to mark whether this model should bypassApproval
+     * This is helpful when doing tests on models requiring approval.
+     *
+     * @var bool
+     */
+    protected static $byPassApproval = false;
     /**
      * Number of approvers this model requires in order
      * to mark the modifications as accepted.
@@ -14,7 +20,6 @@ trait RequiresApproval
      * @var int
      */
     protected $approversRequired = 1;
-
     /**
      * Number of disapprovers this model requires in order
      * to mark the modifications as rejected.
@@ -22,7 +27,6 @@ trait RequiresApproval
      * @var int
      */
     protected $disapproversRequired = 1;
-
     /**
      * Boolean to mark whether or not this model should be updated
      * automatically upon receiving the required number of approvals.
@@ -30,7 +34,6 @@ trait RequiresApproval
      * @var bool
      */
     protected $updateWhenApproved = true;
-
     /**
      * Boolean to mark whether or not the approval model should be deleted
      * automatically when the approval is disapproved wtih the required number
@@ -74,6 +77,26 @@ trait RequiresApproval
     }
 
     /**
+     * Returns true if the model is being force updated.
+     *
+     * @return bool
+     */
+    public function isForcedApprovalUpdate()
+    {
+        return $this->forcedApprovalUpdate;
+    }
+
+    /**
+     * Setter for forcedApprovalUpdate.
+     *
+     * @return bool
+     */
+    public function setForcedApprovalUpdate($forced = true)
+    {
+        return $this->forcedApprovalUpdate = $forced;
+    }
+
+    /**
      * Function that defines the rule of when an approval process
      * should be actioned for this model.
      *
@@ -81,8 +104,54 @@ trait RequiresApproval
      *
      * @return bool
      */
-    protected function requiresApprovalWhen($modifications) : bool
+    protected function requiresApprovalWhen($modifications): bool
     {
+        return false;
+    }
+
+    public static function captureSave($item)
+    {
+        $diff = collect($item->getDirty())
+            ->transform(function ($change, $key) use ($item) {
+                return [
+                    'original' => $item->getOriginal($key),
+                    'modified' => $item->$key,
+                ];
+            })->all();
+
+        $hasModificationPending = $item->modifications()
+            ->activeOnly()
+            ->where('md5', md5(json_encode($diff)))
+            ->first();
+
+        $modifier = $item->modifier();
+
+        $modificationModel = config('approval.models.modification', \Approval\Models\Modification::class);
+
+        $modification = $hasModificationPending ?? new $modificationModel();
+        $modification->active = true;
+        $modification->modifications = $diff;
+        $modification->approvers_required = $item->approversRequired;
+        $modification->disapprovers_required = $item->disapproversRequired;
+        $modification->md5 = md5(json_encode($diff));
+
+        if ($modifier && ($modifierClass = get_class($modifier))) {
+            $modifierInstance = new $modifierClass();
+
+            $modification->modifier_id = $modifier->{$modifierInstance->getKeyName()};
+            $modification->modifier_type = $modifierClass;
+        }
+
+        if (is_null($item->{$item->getKeyName()})) {
+            $modification->is_update = false;
+        }
+
+        $modification->save();
+
+        if (!$hasModificationPending) {
+            $item->modifications()->save($modification);
+        }
+
         return false;
     }
 
@@ -97,16 +166,6 @@ trait RequiresApproval
     }
 
     /**
-     * Return collection of creations for the current model
-     *
-     * @return Collection
-     */
-    public static function creations(){
-        $modificationClass = config('approval.models.modification', \Approval\Models\Modification::class);
-        return $modificationClass::whereModifiableType(static::class)->whereIsUpdate(false)->get();
-    }
-
-    /**
      * Returns the model that should be used as the modifier of the modified model.
      *
      * @return mixed
@@ -114,6 +173,34 @@ trait RequiresApproval
     protected function modifier()
     {
         return auth()->user();
+    }
+
+    /**
+     * sets the bypass variable to true
+     */
+    public static function withoutApproval()
+    {
+        self::$byPassApproval = true;
+        return new static();
+    }
+
+    /**
+     * Return collection of creations for the current model
+     *
+     * @return Collection
+     */
+    public static function creations()
+    {
+        $modificationClass = config('approval.models.modification', \Approval\Models\Modification::class);
+        return $modificationClass::whereModifiableType(static::class)->whereIsUpdate(false)->get();
+    }
+
+    /**
+     * Check is the approval can be bypassed.
+     */
+    public function isApprovalByPassed(): bool
+    {
+        return self::$byPassApproval;
     }
 
     /**
@@ -146,71 +233,5 @@ trait RequiresApproval
                 $modification->save();
             }
         }
-    }
-
-    /**
-     * Returns true if the model is being force updated.
-     *
-     * @return bool
-     */
-    public function isForcedApprovalUpdate()
-    {
-        return $this->forcedApprovalUpdate;
-    }
-
-    /**
-     * Setter for forcedApprovalUpdate.
-     *
-     * @return bool
-     */
-    public function setForcedApprovalUpdate($forced = true)
-    {
-        return $this->forcedApprovalUpdate = $forced;
-    }
-
-    public static function captureSave($item)
-    {
-        $diff = collect($item->getDirty())
-                  ->transform(function ($change, $key) use ($item) {
-                      return [
-                        'original' => $item->getOriginal($key),
-                        'modified' => $item->$key,
-                      ];
-                  })->all();
-
-        $hasModificationPending = $item->modifications()
-                                       ->activeOnly()
-                                       ->where('md5', md5(json_encode($diff)))
-                                       ->first();
-
-        $modifier = $item->modifier();
-
-        $modificationModel = config('approval.models.modification', \Approval\Models\Modification::class);
-
-        $modification = $hasModificationPending ?? new $modificationModel();
-        $modification->active = true;
-        $modification->modifications = $diff;
-        $modification->approvers_required = $item->approversRequired;
-        $modification->disapprovers_required = $item->disapproversRequired;
-        $modification->md5 = md5(json_encode($diff));
-
-        if ($modifier && ($modifierClass = get_class($modifier))) {
-            $modifierInstance = new $modifierClass();
-
-            $modification->modifier_id = $modifier->{$modifierInstance->getKeyName()};
-            $modification->modifier_type = $modifierClass;
-        }
-
-        if (is_null($item->{$item->getKeyName()})) {
-            $modification->is_update = false;
-        }
-
-        $modification->save();
-
-        if (!$hasModificationPending) {
-            $item->modifications()->save($modification);
-        }
-
-        return false;
     }
 }
