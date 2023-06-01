@@ -2,6 +2,8 @@
 
 namespace Approval\Traits;
 
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+
 trait ApprovesChanges
 {
     /**
@@ -127,9 +129,9 @@ trait ApprovesChanges
     /**
      * Return Approval relations via moprhMany.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
-    public function approvals()
+    public function approvals(): MorphMany
     {
         return $this->/* @scrutinizer ignore-call */morphMany(\Approval\Models\Approval::class, 'approver');
     }
@@ -137,9 +139,9 @@ trait ApprovesChanges
     /**
      * Return Disapproval relations via moprhMany.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     * @return MorphMany
      */
-    public function disapprovals()
+    public function disapprovals(): MorphMany
     {
         return $this->/* @scrutinizer ignore-call */morphMany(\Approval\Models\Disapproval::class, 'disapprover');
     }

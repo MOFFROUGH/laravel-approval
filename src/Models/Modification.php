@@ -2,7 +2,10 @@
 
 namespace Approval\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Modification extends Model
 {
@@ -25,9 +28,9 @@ class Modification extends Model
     /**
      * Get models that the modification belongs to.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphTo
+     * @return MorphTo
      */
-    public function modifiable()
+    public function modifiable(): MorphTo
     {
         return $this->morphTo();
     }
@@ -35,9 +38,9 @@ class Modification extends Model
     /**
      * Get models that the ignited this modification.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphTo
+     * @return MorphTo
      */
-    public function modifier()
+    public function modifier(): MorphTo
     {
         return $this->morphTo();
     }
@@ -45,9 +48,9 @@ class Modification extends Model
     /**
      * Return Approval relations via direct relation.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
-    public function approvals()
+    public function approvals(): HasMany
     {
         return $this->hasMany(config('approval.models.approval', \Approval\Models\Approval::class));
     }
@@ -55,9 +58,9 @@ class Modification extends Model
     /**
      * Return Disapproval relations via direct relation.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
-    public function disapprovals()
+    public function disapprovals(): HasMany
     {
         return $this->hasMany(config('approval.models.disapproval', \Approval\Models\Disapproval::class));
     }
@@ -68,7 +71,7 @@ class Modification extends Model
      *
      * @return int
      */
-    public function getApproversRemainingAttribute()
+    public function getApproversRemainingAttribute(): int
     {
         return $this->approvers_required - $this->approvals()->count();
     }
@@ -79,7 +82,7 @@ class Modification extends Model
      *
      * @return int
      */
-    public function getDisapproversRemainingAttribute()
+    public function getDisapproversRemainingAttribute(): int
     {
         return $this->disapprovers_required - $this->disapprovals()->count();
     }
@@ -89,7 +92,7 @@ class Modification extends Model
      *
      * @return int
      */
-    public function getApprovalsRemainingAttribute()
+    public function getApprovalsRemainingAttribute(): int
     {
         return $this->approversRemaining;
     }
@@ -99,7 +102,7 @@ class Modification extends Model
      *
      * @return int
      */
-    public function getDisapprovalsRemainingAttribute()
+    public function getDisapprovalsRemainingAttribute(): int
     {
         return $this->disapproversRemaining;
     }
@@ -117,11 +120,11 @@ class Modification extends Model
     /**
      * Scope to only include active modifications.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param Builder $query
      *
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function scopeActiveOnly($query)
+    public function scopeActiveOnly($query): Builder
     {
         return $query->where('active', true);
     }
@@ -129,11 +132,11 @@ class Modification extends Model
     /**
      * Scope to only include inactive modifications.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param Builder $query
      *
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function scopeInactiveOnly($query)
+    public function scopeInactiveOnly($query): Builder
     {
         return $query->where('active', false);
     }
@@ -141,11 +144,11 @@ class Modification extends Model
     /**
      * Scope to only retrieve changed models.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param Builder $query
      *
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function scopeChanges($query)
+    public function scopeChanges($query): Builder
     {
         return $query->where('is_update', true);
     }
@@ -153,11 +156,11 @@ class Modification extends Model
     /**
      * Scope to only retrieve created models.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param Builder $query
      *
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function scopeCreations($query)
+    public function scopeCreations($query): Builder
     {
         return $query->where('is_update', false);
     }

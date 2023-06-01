@@ -84,6 +84,20 @@ class ApprovalTest extends TestCase
         $this->assertTrue($modification->modifiable_id == null);
     }
 
+    public function testApprovalProcessBypassedOnCreate()
+    {
+        auth()->login(User::first());
+
+        $post = Post::withoutApproval()->create([
+            'title'   => 'Trigger Approval',
+            'content' => 'Sweet Carrot',
+        ]);
+
+        $post->refresh();
+
+        $this->assertEmpty($post->modifications);
+    }
+
     public function testItCanAddReasonToApprove()
     {
         auth()->login(User::first());
