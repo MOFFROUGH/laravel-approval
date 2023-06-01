@@ -3,6 +3,8 @@
 namespace Approval\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Approval extends Model
 {
@@ -16,9 +18,9 @@ class Approval extends Model
     /**
      * Get models that the approval belongs to.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphTo
+     * @return MorphTo
      */
-    public function approver()
+    public function approver(): MorphTo
     {
         return $this->morphTo();
     }
@@ -26,9 +28,9 @@ class Approval extends Model
     /**
      * Return Modification relation via direct relation.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function modification()
+    public function modification(): BelongsTo
     {
         return $this->belongsTo(config('approval.models.modification', \Approval\Models\Modification::class));
     }
